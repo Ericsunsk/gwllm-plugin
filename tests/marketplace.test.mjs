@@ -32,14 +32,31 @@ test("republication preserves every path and hash and rejects a modified release
   assert.throws(() => buildIndex([plugin], null, repository, "main"), /full commit SHA/);
 });
 
-test("a new version keeps historical releases unchanged and rollback is an activation choice", () => {
+test("a new version replaces the previous marketplace version without mutating the input", () => {
   const previous = buildIndex([plugin], null, repository, revision);
   const oldVersion = structuredClone(previous.plugins[0].versions[0]);
   const updated = { ...plugin, meta: { ...meta, version: "2.1.0" }, source: Buffer.from("new version") };
   const next = buildIndex([updated], previous, repository, "b".repeat(40));
   assert.equal(next.plugins[0].latest, "2.1.0");
-  assert.equal(next.plugins[0].versions.length, 2);
-  assert.deepEqual(next.plugins[0].versions[1], oldVersion);
-  assert.deepEqual(buildIndex([plugin], next, repository, revision), next);
+  assert.deepEqual(next.plugins[0].versions, [
+    {
+      version: "2.1.0",
+      path: `https://raw.githubusercontent.com/${repository}/${"b".repeat(40)}/plugins/video-generation/plugin.js`,
+      sha256: createHash("sha256").update(updated.source).digest("hex"),
+      minApiVersion: 1,
+      kind: "task",
+    },
+  ]);
+  assert.deepEqual(buildIndex([updated], next, repository, "c".repeat(40)), next);
   assert.deepEqual(previous.plugins[0].versions, [oldVersion]);
+});
+
+test("republishing a legacy index prunes old versions and preserves the current release reference", () => {
+  const current = buildIndex([plugin], null, repository, revision);
+  const previous = structuredClone(current);
+  previous.plugins[0].versions.push({ ...previous.plugins[0].versions[0], version: "1.1.0" });
+  const next = buildIndex([plugin], previous, repository, "b".repeat(40));
+  assert.deepEqual(next, current);
+  assert.equal(previous.plugins[0].versions.length, 2);
+  assert.throws(() => buildIndex([{ ...plugin, source: Buffer.from("changed") }], previous, repository, revision), /bump meta.version/);
 });

@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/marketplace/index.json
 
 两个自定义插件统一使用公开模型 ID：`minimax-h3`（768P / 1080P / 1440P）、`seedance-2.0`、`seedance-2.0-fast`、`seedance-2.0-mini`、`seedance-2.5`、`veo-3.1`、`wan-3.0`。公开模型和分辨率由插件定义；各分辨率对应的上游模型 ID 在渠道中配置，上游 ID 保持原样。
 
-`video-generation@2.0.0` 统一公开模型 ID，是破坏性变更。市场保留已发布的 `1.1.0` 及其原始路径和哈希。升级前需将渠道公开模型列表、分辨率映射键和相应插件价格键改为新 ID；不提供旧名称别名或自动迁移。旧任务保留提交时的模型身份，必须等待旧任务完成后再激活新版本。
+`video-generation@2.0.0` 统一公开模型 ID，是破坏性变更。市场仅提供当前版本，`1.1.0` 不再列于安装索引。升级前需将渠道公开模型列表、分辨率映射键和相应插件价格键改为新 ID；不提供旧名称别名或自动迁移。旧任务保留提交时的模型身份，必须等待旧任务完成后再激活新版本。
 
 官方 Hailuo 声明的 `MiniMax-H3` 与这里的 `minimax-h3` 仅大小写不同，当前宿主会拒绝同时启用。使用这些自定义插件前，需由管理员手动停用 Hailuo，再激活自定义插件；本仓库不会自动修改原生插件、宿主规则或启用状态。
 
@@ -37,13 +37,13 @@ https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/marketplace/index.json
 
 请求要求文本提示词，可附带一个 `input_reference` URL 或一个同名上传文件；多图明确拒绝。Responses 输入支持文本和一张参考图。`metadata` 仅透传描述信息，不合并生成参数；其中的 `seconds`、`duration`、`size`、`resolution`、`n`、`quality`、`count`、`batch_size` 会被拒绝。顶层 `n`、`quality`、`count`、`batch_size` 亦不支持。其他未知顶层字段不向上游转发。
 
-这些模型、时长和尺寸是本插件的可编辑配置，需目标供应商实际支持 OpenAI Videos 请求、任务对象及内容下载契约；尚未完成真实供应商端到端验证。官方 Sora 插件仍由主项目维护，本插件不包含 Sora 模型或其专用限制。插件市场提供 `openai-video@1.0.0` 和 `video-generation@2.0.0`，并保留历史版本。
+这些模型、时长和尺寸是本插件的可编辑配置，需目标供应商实际支持 OpenAI Videos 请求、任务对象及内容下载契约；尚未完成真实供应商端到端验证。官方 Sora 插件仍由主项目维护，本插件不包含 Sora 模型或其专用限制。插件市场仅提供 `openai-video@1.0.0` 和 `video-generation@2.0.0`，不保留旧版本条目。
 
 ## 兼容性
 
 宿主需支持 Task Plugin API v1 的 `modelVariants`、`usageProfiles`、`enumLabels`、`upstreams` 扩展及第三方插件市场源。`minApiVersion: 1` 只表示契约主版本，不代表所有旧版 v1 宿主均能加载。已验证的来源基线是 `Ericsunsk/gwllm@f1da677e478ce75cc25478478462ee88492fe52e`；最终安装检查由宿主编译器执行。新增宿主运行时能力或协议契约仍需升级主项目。
 
-后台轮询旧异步任务时使用当前激活插件。升级需兼容尚未完成任务的请求、状态和持久化数据，或先等待任务完成再激活。安装历史版本可回滚，回滚同样需要兼容进行中的任务。
+后台轮询旧异步任务时使用当前激活插件。升级需兼容尚未完成任务的请求、状态和持久化数据，或先等待任务完成再激活。市场不提供历史版本安装；Git 历史中的源码记录继续保留。
 
 ## 开发与发布
 
@@ -58,7 +58,7 @@ npm run check
 
 源码放在 `plugins/<key>/plugin.js`，元数据以源码实际导出的 `meta` 为唯一来源。修改已发布插件必须递增 `meta.version`；禁止复用版本号修改内容。新增插件采用同一目录布局并补充行为回归。
 
-PR 和 main 的 CI 只验证。发布时在 GitHub Actions 手动运行 `Publish marketplace`，选择 main 中已经合并的完整 commit SHA（留空使用工作流提交）。工作流重新验证该 SHA，再原子更新 `marketplace` 分支的 `index.json`。历史版本路径和 SHA256 保留；重复发布无变化，同版本不同内容直接失败。源文件 URL 固定到 40 位 commit SHA，不使用可变分支 URL。
+PR 和 main 的 CI 只验证。发布时在 GitHub Actions 手动运行 `Publish marketplace`，选择 main 中已经合并的完整 commit SHA（留空使用工作流提交）。工作流重新验证该 SHA，再原子更新 `marketplace` 分支的 `index.json`。索引每个插件只保留当前版本；已有当前版本的路径和 SHA256 保留，重复发布会移除旧版本条目，同版本不同内容直接失败。源文件 URL 固定到 40 位 commit SHA，不使用可变分支 URL。
 
 本地预览发布（只准备本地分支，不推送）：
 
