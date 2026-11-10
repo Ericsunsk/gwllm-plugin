@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as plugin from "../plugins/video-generation/plugin.js";
 
-const base = { baseUrl: "https://upstream.example", apiKey: "test-key", model: "MiniMax-H3", upstreamModel: "mapped/provider-id" };
+const base = { baseUrl: "https://upstream.example", apiKey: "test-key", model: "minimax-h3", upstreamModel: "mapped/provider-id" };
 const image = "https://cdn.example/reference.jpg";
 
 const surfaces = {
@@ -10,6 +10,22 @@ const surfaces = {
   responses: (body, model) => plugin.protocols.openai_responses.decodeRequest({ model, body: { kind: "json", value: body } }),
   video: (body, model) => plugin.protocols.openai_video.decodeRequest({ model, body: { kind: "json", value: body } }),
 };
+
+test("public model IDs are canonical, old Wan spelling is rejected and upstream identifiers stay opaque", () => {
+  assert.equal(plugin.meta.version, "2.0.0");
+  assert.deepEqual(plugin.meta.models, ["minimax-h3", "seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini", "seedance-2.5", "veo-3.1", "wan-3.0"]);
+  for (const decode of Object.values(surfaces)) {
+    assert.throws(() => decode({ prompt: "p" }, "wan3.0"), /unsupported video generation model/);
+    const intent = decode({ prompt: "p", images: [image] }, "MINIMAX-H3");
+    assert.equal(intent.model, "minimax-h3");
+    const upstreamModel = "Vendor/MiniMax-H3_Wan3.0";
+    const ctx = { ...base, model: intent.model, upstreamModel, requestBody: intent.requestBody };
+    assert.equal(plugin.buildSubmitRequest(ctx).body.model, upstreamModel);
+    assert.match(plugin.buildSubmitRequest(ctx).url, /Vendor%2FMiniMax-H3_Wan3\.0$/);
+    const wan = decode({ prompt: "p" }, "wan-3.0");
+    assert.equal(wan.model, "wan-3.0");
+  }
+});
 
 for (const [name, decode] of Object.entries(surfaces)) {
   test(`${name}: H3 resolution routing preserves mapped ID, normalized usage and request fields`, () => {
@@ -20,8 +36,8 @@ for (const [name, decode] of Object.entries(surfaces)) {
       ["1080x1920", "1080p"],
       ["1440P", "1440p"],
     ]) {
-      const intent = decode({ prompt: "p", images: [image], size: input, duration: 10, metadata: { ratio: "16:9", seed: 0 } }, "MiniMax-H3");
-      assert.equal(intent.model, "MiniMax-H3");
+      const intent = decode({ prompt: "p", images: [image], size: input, duration: 10, metadata: { ratio: "16:9", seed: 0 } }, "minimax-h3");
+      assert.equal(intent.model, "minimax-h3");
       assert.equal(intent.modelVariant, resolution);
       const ctx = { ...base, requestBody: intent.requestBody };
       const request = plugin.buildSubmitRequest(ctx);
@@ -45,7 +61,7 @@ test("model profiles normalize Seedance variants and enforce fixed duration and 
   for (const [model, resolutions] of Object.entries(plugin.meta.modelVariants)) {
     assert.ok(plugin.meta.models.includes(model));
     for (const resolution of resolutions) {
-      const body = { prompt: "p", resolution, images: model === "MiniMax-H3" ? [image] : [] };
+      const body = { prompt: "p", resolution, images: model === "minimax-h3" ? [image] : [] };
       if (model === "veo-3.1") body.quality = resolution;
       const intent = surfaces.video(body, model);
       const ctx = { ...base, model, requestBody: intent.requestBody };
@@ -64,9 +80,9 @@ test("model profiles normalize Seedance variants and enforce fixed duration and 
 
 test("billing quantities reject invalid durations and use only valid reported completion facts", () => {
   for (const seconds of [-1, 0, 4, 16, 1.5, "NaN", Infinity, 3601]) {
-    assert.throws(() => surfaces.video({ prompt: "p", images: [image], seconds }, "MiniMax-H3"), /duration/);
+    assert.throws(() => surfaces.video({ prompt: "p", images: [image], seconds }, "minimax-h3"), /duration/);
   }
-  assert.throws(() => surfaces.video({ prompt: "p" }, "MiniMax-H3"), /reference image/);
+  assert.throws(() => surfaces.video({ prompt: "p" }, "minimax-h3"), /reference image/);
   assert.equal(plugin.extractUsage({ ...base, usagePurpose: "billing_ratios" }), null);
   assert.equal(plugin.extractUsageOnComplete(base, {}, { output: { seconds: 999999, resolution: "broken" } }), null);
   assert.deepEqual(plugin.extractUsageOnComplete({ model: "seedance-2.0" }, {}, { output: { seconds: 6, resolution: "720p" } }), { resolution: "720p" });

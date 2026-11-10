@@ -1,9 +1,9 @@
 // Public profile names stay separate from the provider's model identifiers.
-const H3_MODEL = "MiniMax-H3";
+const H3_MODEL = "minimax-h3";
 const SEEDANCE_2_MODEL = "seedance-2.0";
 const SEEDANCE_MODEL = "seedance-2.5";
 const VEO_MODEL = "veo-3.1";
-const WAN_MODEL = "wan3.0";
+const WAN_MODEL = "wan-3.0";
 const RESOLUTION_LABELS = {
   "480p": { en: "480P", zh: "480P" },
   "720p": { en: "720P", zh: "720P" },
@@ -76,7 +76,7 @@ export const meta = {
     en: "Video generation",
     zh: "视频生成",
   },
-  version: "1.1.0",
+  version: "2.0.0",
   author: { name: "QuantumNous" },
   models: MODEL_NAMES,
   modelVariants: Object.fromEntries(MODEL_NAMES.map((model) => [model, PROFILES[model].resolutions])),
@@ -178,7 +178,8 @@ function responsesInput(req) {
 
 function normalizeRequest(req, model, mappedModel) {
   const source = plainObject(req) || {};
-  const profile = profileFor(model);
+  const canonical = MODEL_NAMES.find((name) => name.toLowerCase() === trimmed(model).toLowerCase());
+  const profile = canonical ? PROFILES[canonical] : null;
   if (!profile) throw new Error("unsupported video generation model");
   const input = responsesInput(source);
   const prompt = trimmed(source.prompt) || input.prompt;
@@ -200,7 +201,7 @@ function normalizeRequest(req, model, mappedModel) {
     throw new Error(model + " duration must be between " + profile.seconds[0] + " and " + profile.seconds[1] + " seconds");
   if (profile.seconds && profile.seconds.length === 1 && seconds !== profile.seconds[0])
     throw new Error(model + " duration must be " + profile.seconds[0] + " seconds");
-  const body = { model: trimmed(mappedModel) || model, prompt: prompt };
+  const body = { model: trimmed(mappedModel) || canonical, prompt: prompt };
   if (seconds !== undefined) body.seconds = seconds;
   if (profile.kind === "h3") body.size = resolution.toUpperCase();
   else body.size = resolution;
@@ -211,7 +212,14 @@ function normalizeRequest(req, model, mappedModel) {
     if (source[key] !== undefined) body[key] = source[key];
     else if (metadata && metadata[key] !== undefined) body[key] = metadata[key];
   }
-  return { body: body, resolution: resolution, seconds: seconds, quality: body.quality, action: images.length ? "image_to_video" : "text_to_video" };
+  return {
+    model: canonical,
+    body: body,
+    resolution: resolution,
+    seconds: seconds,
+    quality: body.quality,
+    action: images.length ? "image_to_video" : "text_to_video",
+  };
 }
 
 function taskID(body) {
@@ -393,7 +401,7 @@ export const protocols = {
       if (!model) throw new Error("model is required");
       if (req.input !== undefined && typeof req.input !== "string" && !Array.isArray(req.input)) throw new Error("input must be a string or array");
       const normalized = normalizeRequest(req, model, ctx.upstreamModel);
-      return { kind: "submit", model: model, modelVariant: normalized.resolution, action: normalized.action, requestBody: normalized.body };
+      return { kind: "submit", model: normalized.model, modelVariant: normalized.resolution, action: normalized.action, requestBody: normalized.body };
     },
     renderEvents: function (ctx, task, previousState) {
       const status = String(task.status || "UNKNOWN").toUpperCase();
@@ -474,7 +482,7 @@ protocols.openai_video = {
     }
     const model = ctx.model;
     const normalized = normalizeRequest(req, model, ctx.upstreamModel);
-    return { kind: "submit", model: model, modelVariant: normalized.resolution, action: normalized.action, requestBody: normalized.body };
+    return { kind: "submit", model: normalized.model, modelVariant: normalized.resolution, action: normalized.action, requestBody: normalized.body };
   },
   render: function (_ctx, task) {
     return openaiVideoRenderer(task);

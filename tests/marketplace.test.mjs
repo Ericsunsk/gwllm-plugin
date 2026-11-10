@@ -35,9 +35,9 @@ test("republication preserves every path and hash and rejects a modified release
 test("a new version keeps historical releases unchanged and rollback is an activation choice", () => {
   const previous = buildIndex([plugin], null, repository, revision);
   const oldVersion = structuredClone(previous.plugins[0].versions[0]);
-  const updated = { ...plugin, meta: { ...meta, version: "1.2.0" }, source: Buffer.from("new version") };
+  const updated = { ...plugin, meta: { ...meta, version: "2.1.0" }, source: Buffer.from("new version") };
   const next = buildIndex([updated], previous, repository, "b".repeat(40));
-  assert.equal(next.plugins[0].latest, "1.2.0");
+  assert.equal(next.plugins[0].latest, "2.1.0");
   assert.equal(next.plugins[0].versions.length, 2);
   assert.deepEqual(next.plugins[0].versions[1], oldVersion);
   assert.deepEqual(buildIndex([plugin], next, repository, revision), next);
