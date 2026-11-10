@@ -10,9 +10,34 @@
 https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/marketplace/index.json
 ```
 
-选择版本并安装、激活，再在渠道中绑定 `video-generation`，无需重新部署网关。`video-generation` 由本仓库独立维护，主项目不再内嵌其工厂副本；官方内置 Sora、Hailuo 等插件继续由主项目维护。已有相同 key 的安装可通过激活版本更新；本仓库不会自动拉取或修改生产配置。
+选择版本并安装、激活，再在渠道中绑定 `video-generation` 或 `openai-video`，无需重新部署网关。`video-generation` 由本仓库独立维护，主项目不再内嵌其工厂副本；官方内置 Sora、Hailuo 等插件继续由主项目维护。已有相同 key 的安装可通过激活版本更新；本仓库不会自动拉取或修改生产配置。
 
-`video-generation@1.1.0` 支持 MiniMax-H3（768P / 1080P / 1440P）、Seedance 2.0 / fast / mini、Seedance 2.5、Veo 3.1 和 Wan 3.0。公开模型和分辨率由插件定义；各分辨率对应的上游模型 ID 在渠道中配置。
+两个自定义插件统一使用公开模型 ID：`minimax-h3`（768P / 1080P / 1440P）、`seedance-2.0`、`seedance-2.0-fast`、`seedance-2.0-mini`、`seedance-2.5`、`veo-3.1`、`wan-3.0`。公开模型和分辨率由插件定义；各分辨率对应的上游模型 ID 在渠道中配置，上游 ID 保持原样。
+
+`video-generation@2.0.0` 统一公开模型 ID，是破坏性变更。市场保留已发布的 `1.1.0` 及其原始路径和哈希。升级前需将渠道公开模型列表、分辨率映射键和相应插件价格键改为新 ID；不提供旧名称别名或自动迁移。旧任务保留提交时的模型身份，必须等待旧任务完成后再激活新版本。
+
+官方 Hailuo 声明的 `MiniMax-H3` 与这里的 `minimax-h3` 仅大小写不同，当前宿主会拒绝同时启用。使用这些自定义插件前，需由管理员手动停用 Hailuo，再激活自定义插件；本仓库不会自动修改原生插件、宿主规则或启用状态。
+
+## OpenAI Video
+
+`openai-video@1.0.0` 为相同的七个自定义公开模型提供独立插件，通过 `POST /v1/videos` 提交、`GET /v1/videos/:id` 查询和 `GET/HEAD /v1/videos/:id/content` 下载。也支持宿主 `/v1/responses` 的 stream、sync、background 模式。JSON 和 multipart 图片上传使用同一请求校验。上游为厂商或另一 New API 网关时均使用这些标准路径；不会使用 `video-generation` 的 `/v1/videos/generations/:model` 接口。
+
+模型配置集中在 `plugins/openai-video/plugin.js` 的 `MODEL_DEFINITIONS`，自动生成模型、分辨率路由与每模型计费字段。新增模型只需修改该定义和对应回归用例，再递增插件版本。渠道绑定 `openai-video` 后，按公开模型和分辨率配置上游模型 ID；实际出站 `body.model` 使用该映射 ID。计费为 `seconds` 与 `resolution`，与 `video-generation` 共用公开模型时，可在 `<pluginKey>::<model>` 下单独配置价格。
+
+当前策略为缺省 5 秒、允许整数 1–3600 秒；这是安全校验范围，不代表供应商支持全部时长。`seconds` 和别名 `duration` 双写必须相同。分辨率选项沿用本仓库自定义模型配置，默认使用每个模型的首个选项。`size` 接受表内横竖尺寸或分辨率名，`resolution` 接受同样的归一化输入；同时提供时必须属于同一档位。出站始终发送明确的 `WxH`，保留所选横竖方向。缺省或仅给分辨率名时采用以下横向尺寸：
+
+| 分辨率 | 默认出站尺寸 |
+| ------ | ------------ |
+| 480p   | 854x480      |
+| 720p   | 1280x720     |
+| 768p   | 1280x768     |
+| 1080p  | 1920x1080    |
+| 1440p  | 2560x1440    |
+| 4k     | 3840x2160    |
+
+请求要求文本提示词，可附带一个 `input_reference` URL 或一个同名上传文件；多图明确拒绝。Responses 输入支持文本和一张参考图。`metadata` 仅透传描述信息，不合并生成参数；其中的 `seconds`、`duration`、`size`、`resolution`、`n`、`quality`、`count`、`batch_size` 会被拒绝。顶层 `n`、`quality`、`count`、`batch_size` 亦不支持。其他未知顶层字段不向上游转发。
+
+这些模型、时长和尺寸是本插件的可编辑配置，需目标供应商实际支持 OpenAI Videos 请求、任务对象及内容下载契约；尚未完成真实供应商端到端验证。官方 Sora 插件仍由主项目维护，本插件不包含 Sora 模型或其专用限制。插件市场提供 `openai-video@1.0.0` 和 `video-generation@2.0.0`，并保留历史版本。
 
 ## 兼容性
 
