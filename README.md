@@ -10,7 +10,7 @@
 https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/marketplace/index.json
 ```
 
-选择版本并安装、激活，即可覆盖同 key 的工厂插件，无需重新部署网关。官方内置 Sora、Hailuo 等插件继续由主项目维护。主项目内嵌的 `video-generation` 基础副本保留；本仓库不会自动拉取或修改生产配置。
+选择版本并安装、激活，再在渠道中绑定 `video-generation`，无需重新部署网关。`video-generation` 由本仓库独立维护，主项目不再内嵌其工厂副本；官方内置 Sora、Hailuo 等插件继续由主项目维护。已有相同 key 的安装可通过激活版本更新；本仓库不会自动拉取或修改生产配置。
 
 `video-generation@1.1.0` 支持 MiniMax-H3（768P / 1080P / 1440P）、Seedance 2.0 / fast / mini、Seedance 2.5、Veo 3.1 和 Wan 3.0。公开模型和分辨率由插件定义；各分辨率对应的上游模型 ID 在渠道中配置。
 
