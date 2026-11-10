@@ -3,20 +3,21 @@
   "name": "gwllm-plugin",
   "plugins": [
     {
-      "key": "video-generation",
-      "name": "Video Generation",
+      "key": "openai-video",
+      "name": "OpenAI Video",
+      "icon": "OpenAI",
       "description": {
-        "en": "Video generation",
-        "zh": "视频生成"
+        "en": "Custom video models via the OpenAI Videos API",
+        "zh": "通过 OpenAI Videos 接口调用自定义视频模型"
       },
       "models": [
-        "MiniMax-H3",
+        "minimax-h3",
         "seedance-2.0",
         "seedance-2.0-fast",
         "seedance-2.0-mini",
         "seedance-2.5",
         "veo-3.1",
-        "wan3.0"
+        "wan-3.0"
       ],
       "protocols": [
         {
@@ -29,8 +30,53 @@
         },
         "openai_video"
       ],
-      "latest": "1.1.0",
+      "latest": "1.0.0",
       "versions": [
+        {
+          "version": "1.0.0",
+          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/799ea38a09f95c262d4aa34e58720bbb2e93e320/plugins/openai-video/plugin.js",
+          "sha256": "c146828ae2f8715fd4813625ae836522d878a08c15f333972e8616d2a3ec1ea1",
+          "minApiVersion": 1,
+          "kind": "task"
+        }
+      ]
+    },
+    {
+      "key": "video-generation",
+      "name": "Video Generation",
+      "description": {
+        "en": "Video generation",
+        "zh": "视频生成"
+      },
+      "models": [
+        "minimax-h3",
+        "seedance-2.0",
+        "seedance-2.0-fast",
+        "seedance-2.0-mini",
+        "seedance-2.5",
+        "veo-3.1",
+        "wan-3.0"
+      ],
+      "protocols": [
+        {
+          "name": "openai_responses",
+          "supports": [
+            "stream",
+            "sync",
+            "background"
+          ]
+        },
+        "openai_video"
+      ],
+      "latest": "2.0.0",
+      "versions": [
+        {
+          "version": "2.0.0",
+          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/799ea38a09f95c262d4aa34e58720bbb2e93e320/plugins/video-generation/plugin.js",
+          "sha256": "a5c6fc1cc591fed1e18c36d0050be53f9665ea1cced57c8b6ffe4fce0b48efc1",
+          "minApiVersion": 1,
+          "kind": "task"
+        },
         {
           "version": "1.1.0",
           "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/53b546167e9a5efcae234717ec6952a4828266eb/plugins/video-generation/plugin.js",
