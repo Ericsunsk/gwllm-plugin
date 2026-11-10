@@ -1,0 +1,11 @@
+{
+  "endOfLine": "lf",
+  "insertFinalNewline": true,
+  "printWidth": 160,
+  "quoteProps": "as-needed",
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "ignorePatterns": ["contract/", "package-lock.json"]
+}

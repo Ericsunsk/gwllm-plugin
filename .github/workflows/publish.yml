@@ -1,0 +1,68 @@
+name: Publish marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full main commit SHA to check and publish (empty selects this workflow commit)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-publication
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      revision: ${{ steps.source.outputs.revision }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select a commit already merged into main
+        id: source
+        env:
+          REQUESTED_REVISION: ${{ inputs.revision }}
+          WORKFLOW_REVISION: ${{ github.sha }}
+        run: |
+          revision="${REQUESTED_REVISION:-$WORKFLOW_REVISION}"
+          [[ "$revision" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$revision" origin/main
+          git checkout --detach "$revision"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+  publish:
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.3.1
+        with:
+          ref: ${{ needs.check.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Prepare immutable source references and updated index
+        run: node scripts/prepare-release.mjs
+      - name: Publish index atomically
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git -C .release/marketplace -c core.hooksPath=/dev/null -c credential.helper= -c 'credential.helper=!gh auth git-credential' push origin HEAD:refs/heads/marketplace
