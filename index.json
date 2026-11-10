@@ -1,0 +1,44 @@
+{
+  "indexVersion": 1,
+  "name": "gwllm-plugin",
+  "plugins": [
+    {
+      "key": "video-generation",
+      "name": "Video Generation",
+      "description": {
+        "en": "Video generation",
+        "zh": "视频生成"
+      },
+      "models": [
+        "MiniMax-H3",
+        "seedance-2.0",
+        "seedance-2.0-fast",
+        "seedance-2.0-mini",
+        "seedance-2.5",
+        "veo-3.1",
+        "wan3.0"
+      ],
+      "protocols": [
+        {
+          "name": "openai_responses",
+          "supports": [
+            "stream",
+            "sync",
+            "background"
+          ]
+        },
+        "openai_video"
+      ],
+      "latest": "1.1.0",
+      "versions": [
+        {
+          "version": "1.1.0",
+          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/53b546167e9a5efcae234717ec6952a4828266eb/plugins/video-generation/plugin.js",
+          "sha256": "e4de27156117990c9e0cc12233e4ed321199852764d80495cf6a8c54dea6a7ec",
+          "minApiVersion": 1,
+          "kind": "task"
+        }
+      ]
+    }
+  ]
+}
