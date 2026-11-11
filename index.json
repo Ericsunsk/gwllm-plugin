@@ -30,12 +30,12 @@
         },
         "openai_video"
       ],
-      "latest": "1.0.1",
+      "latest": "1.0.2",
       "versions": [
         {
-          "version": "1.0.1",
-          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/c885eac2e5036dceedd77ce9ad6097372fde431a/plugins/openai-video/plugin.js",
-          "sha256": "dd0884bd27e5b4c735a0189867d7be64584dfb7bf59730a4b44df6ac3b79122d",
+          "version": "1.0.2",
+          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/008b353a4180fb352b69ce83aa6edbbdba9a2828/plugins/openai-video/plugin.js",
+          "sha256": "2267c1596fc92b78f7c3dd2182d66f2a7085e00a18d6a5db5dd4e3ca033812ca",
           "minApiVersion": 1,
           "kind": "task"
         }
@@ -68,12 +68,12 @@
         },
         "openai_video"
       ],
-      "latest": "2.0.1",
+      "latest": "2.0.2",
       "versions": [
         {
-          "version": "2.0.1",
-          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/c885eac2e5036dceedd77ce9ad6097372fde431a/plugins/video-generation/plugin.js",
-          "sha256": "cc0660dd617f3b4318cf3ca6d50f818614ad336b233034acbf9e78480e841f8c",
+          "version": "2.0.2",
+          "path": "https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/008b353a4180fb352b69ce83aa6edbbdba9a2828/plugins/video-generation/plugin.js",
+          "sha256": "b866970d3db0b3d9c20258525027837a9cd1df8d5aed68b7564661903d0654b8",
           "minApiVersion": 1,
           "kind": "task"
         }
