@@ -12,7 +12,7 @@ const surfaces = {
 };
 
 test("public model IDs are canonical, old Wan spelling is rejected and upstream identifiers stay opaque", () => {
-  assert.equal(plugin.meta.version, "2.0.0");
+  assert.equal(plugin.meta.version, "2.0.1");
   assert.deepEqual(plugin.meta.models, ["minimax-h3", "seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini", "seedance-2.5", "veo-3.1", "wan-3.0"]);
   for (const decode of Object.values(surfaces)) {
     assert.throws(() => decode({ prompt: "p" }, "wan3.0"), /unsupported video generation model/);
@@ -58,8 +58,20 @@ for (const [name, decode] of Object.entries(surfaces)) {
 }
 
 test("model profiles normalize Seedance variants and enforce fixed duration and Veo quality", () => {
+  assert.deepEqual(plugin.meta.modelVariants, {
+    "minimax-h3": ["768p", "1080p", "1440p"],
+    "seedance-2.0": ["720p", "480p", "1080p", "4k"],
+    "seedance-2.0-fast": ["720p", "480p"],
+    "seedance-2.0-mini": ["720p", "480p"],
+    "seedance-2.5": ["720p", "480p", "1080p"],
+    "veo-3.1": ["720p", "1080p", "4k"],
+    "wan-3.0": ["720p", "480p", "1080p"],
+  });
   for (const [model, resolutions] of Object.entries(plugin.meta.modelVariants)) {
     assert.ok(plugin.meta.models.includes(model));
+    const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes(model));
+    assert.deepEqual(profile.schema.resolution.enum, resolutions);
+    assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), resolutions);
     for (const resolution of resolutions) {
       const body = { prompt: "p", resolution, images: model === "minimax-h3" ? [image] : [] };
       if (model === "veo-3.1") body.quality = resolution;
@@ -76,6 +88,60 @@ test("model profiles normalize Seedance variants and enforce fixed duration and 
   assert.throws(() => surfaces.video({ prompt: "p", seconds: 6 }, "seedance-2.5"), /duration must be 5/);
   assert.throws(() => surfaces.video({ prompt: "p", size: "1080p" }, "seedance-2.0-fast"), /resolution must be one of/);
   assert.throws(() => surfaces.video({ prompt: "p", size: "1080p", quality: "720p" }, "veo-3.1"), /resolution must match quality/);
+});
+
+test("Wan 3.0 supports 480p, 720p and 1080p across native and host protocols and rejects 1440p", () => {
+  assert.deepEqual(plugin.meta.modelVariants["wan-3.0"], ["720p", "480p", "1080p"]);
+  const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes("wan-3.0"));
+  assert.deepEqual(profile.schema.resolution.enum, ["720p", "480p", "1080p"]);
+  assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), ["720p", "480p", "1080p"]);
+  assert.ok(plugin.meta.modelVariants["minimax-h3"].includes("1440p"));
+  assert.ok(!plugin.meta.modelVariants["seedance-2.5"].includes("1440p"));
+  for (const decode of Object.values(surfaces)) {
+    assert.equal(decode({ prompt: "p" }, "wan-3.0").modelVariant, "720p");
+    for (const size of ["1440P", "2560x1440", "1440x2560"]) {
+      assert.throws(() => decode({ prompt: "p", size }, "wan-3.0"), /resolution must be one of/);
+    }
+    for (const size of ["480P", "854x480", "480x854"]) {
+      const intent = decode({ prompt: "p", size }, "wan-3.0");
+      const ctx = { ...base, model: intent.model, requestBody: intent.requestBody };
+      const request = plugin.buildSubmitRequest(ctx);
+      assert.equal(intent.modelVariant, "480p");
+      assert.equal(request.body.model, base.upstreamModel);
+      assert.equal(request.body.size, "480p");
+      assert.deepEqual(plugin.extractUsage(ctx), { resolution: "480p" });
+      assert.deepEqual(plugin.extractUsageOnComplete(ctx, {}, { output: { size } }), { resolution: "480p" });
+    }
+  }
+  const wan = { ...base, model: "wan-3.0", requestBody: { prompt: "p", size: "1440p" } };
+  assert.throws(() => plugin.buildSubmitRequest(wan), /resolution must be one of/);
+  assert.throws(() => plugin.extractUsage(wan), /resolution must be one of/);
+  assert.equal(plugin.extractUsageOnComplete(wan, {}, { output: { size: "1440p" } }), null);
+});
+
+test("Seedance 2.5 rejects 1440p, and Veo 3.1 routes and bills 4k consistently", () => {
+  const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes("veo-3.1"));
+  assert.deepEqual(profile.schema.quality.enum, ["720p", "1080p", "4k"]);
+  assert.deepEqual(Object.keys(profile.schema), ["resolution", "quality"]);
+  for (const decode of Object.values(surfaces)) {
+    assert.throws(() => decode({ prompt: "p", size: "1440p" }, "seedance-2.5"), /resolution must be one of/);
+    const defaults = decode({ prompt: "p" }, "veo-3.1");
+    assert.equal(defaults.modelVariant, "720p");
+    assert.deepEqual(plugin.extractUsage({ ...base, model: "veo-3.1", requestBody: defaults.requestBody }), profile.examples[0].facts);
+    for (const size of ["4K", "3840x2160", "2160x3840"]) {
+      const intent = decode({ prompt: "p", size }, "veo-3.1");
+      const ctx = { ...base, model: intent.model, requestBody: intent.requestBody };
+      assert.equal(intent.modelVariant, "4k");
+      assert.deepEqual(plugin.buildSubmitRequest(ctx).body, { model: base.upstreamModel, prompt: "p", size: "4k", quality: "4k" });
+      assert.deepEqual(plugin.extractUsage(ctx), { resolution: "4k", quality: "4k" });
+      assert.deepEqual(plugin.extractUsageOnComplete(ctx, {}, { output: { size } }), { resolution: "4k" });
+    }
+    assert.throws(() => decode({ prompt: "p", size: "4k", quality: "1080p" }, "veo-3.1"), /resolution must match quality/);
+  }
+  const seedance = { ...base, model: "seedance-2.5", requestBody: { prompt: "p", size: "1440p" } };
+  assert.throws(() => plugin.buildSubmitRequest(seedance), /resolution must be one of/);
+  assert.throws(() => plugin.extractUsage(seedance), /resolution must be one of/);
+  assert.equal(plugin.extractUsageOnComplete(seedance, {}, { output: { size: "1440p" } }), null);
 });
 
 test("billing quantities reject invalid durations and use only valid reported completion facts", () => {

@@ -6,9 +6,9 @@ const MODEL_DEFINITIONS = {
   "seedance-2.0": { resolutions: ["720p", "480p", "1080p", "4k"], seconds: DURATION },
   "seedance-2.0-fast": { resolutions: ["720p", "480p"], seconds: DURATION },
   "seedance-2.0-mini": { resolutions: ["720p", "480p"], seconds: DURATION },
-  "seedance-2.5": { resolutions: ["720p", "480p", "1080p", "1440p"], seconds: DURATION },
-  "veo-3.1": { resolutions: ["720p", "1080p"], seconds: DURATION },
-  "wan-3.0": { resolutions: ["720p", "1080p", "1440p"], seconds: DURATION },
+  "seedance-2.5": { resolutions: ["720p", "480p", "1080p"], seconds: DURATION },
+  "veo-3.1": { resolutions: ["720p", "1080p", "4k"], seconds: DURATION },
+  "wan-3.0": { resolutions: ["720p", "480p", "1080p"], seconds: DURATION },
 };
 const RESOLUTION_DIMENSIONS = {
   "480p": "854x480",
@@ -26,7 +26,7 @@ export const meta = {
   key: "openai-video",
   name: "OpenAI Video",
   icon: "OpenAI",
-  version: "1.0.0",
+  version: "1.0.1",
   author: { name: "QuantumNous" },
   description: { en: "Custom video models via the OpenAI Videos API", zh: "通过 OpenAI Videos 接口调用自定义视频模型" },
   models: MODEL_NAMES,

@@ -33,9 +33,9 @@ const PROFILES = {
   [SEEDANCE_2_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p", "4k"], seconds: [5] },
   [`${SEEDANCE_2_MODEL}-fast`]: { kind: "fixed", resolutions: ["720p", "480p"], seconds: [5] },
   [`${SEEDANCE_2_MODEL}-mini`]: { kind: "fixed", resolutions: ["720p", "480p"], seconds: [5] },
-  [SEEDANCE_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p", "1440p"], seconds: [5] },
-  [VEO_MODEL]: { kind: "veo", resolutions: ["720p", "1080p"] },
-  [WAN_MODEL]: { kind: "fixed", resolutions: ["720p", "1080p", "1440p"] },
+  [SEEDANCE_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p"], seconds: [5] },
+  [VEO_MODEL]: { kind: "veo", resolutions: ["720p", "1080p", "4k"] },
+  [WAN_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p"] },
 };
 const MODEL_NAMES = Object.keys(PROFILES);
 
@@ -55,7 +55,7 @@ function modelSchema(model) {
     for (const value of values) enumLabels[value] = VIDEO_RESOLUTION_FIELD.enumLabels[value];
     schema.resolution = Object.assign({}, VIDEO_RESOLUTION_FIELD, { enum: values, enumLabels: enumLabels });
   }
-  if (profile.kind === "veo") schema.quality = { enum: ["720p", "1080p"], description: { en: "Video generation quality", zh: "视频生成画质" } };
+  if (profile.kind === "veo") schema.quality = { enum: profile.resolutions, description: { en: "Video generation quality", zh: "视频生成画质" } };
   return schema;
 }
 
@@ -76,7 +76,7 @@ export const meta = {
     en: "Video generation",
     zh: "视频生成",
   },
-  version: "2.0.0",
+  version: "2.0.1",
   author: { name: "QuantumNous" },
   models: MODEL_NAMES,
   modelVariants: Object.fromEntries(MODEL_NAMES.map((model) => [model, PROFILES[model].resolutions])),
@@ -191,7 +191,7 @@ function normalizeRequest(req, model, mappedModel) {
   if (!resolution) resolution = (profile.resolutions && profile.resolutions[0]) || "768p";
   if (profile.resolutions && !profile.resolutions.includes(resolution)) throw new Error(model + " resolution must be one of " + profile.resolutions.join(", "));
   if (profile.kind === "veo") {
-    const quality = trimmed(source.quality).toLowerCase() || "720p";
+    const quality = trimmed(source.quality).toLowerCase() || resolution;
     if (!profile.resolutions.includes(quality)) throw new Error("veo-3.1 quality must be one of " + profile.resolutions.join(", "));
     if (resolution !== quality) throw new Error("veo-3.1 resolution must match quality");
   }
@@ -205,7 +205,7 @@ function normalizeRequest(req, model, mappedModel) {
   if (seconds !== undefined) body.seconds = seconds;
   if (profile.kind === "h3") body.size = resolution.toUpperCase();
   else body.size = resolution;
-  if (profile.kind === "veo") body.quality = trimmed(source.quality).toLowerCase() || "720p";
+  if (profile.kind === "veo") body.quality = resolution;
   if (images.length) body.images = images;
   const metadata = plainObject(source.metadata);
   for (const key of ["aspect_ratio", "ratio", "seed"]) {
