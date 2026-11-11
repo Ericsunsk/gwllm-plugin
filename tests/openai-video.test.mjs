@@ -29,7 +29,7 @@ test("OpenAI Video manifest and local index coexist with Video Generation withou
     plugins.map(({ meta }) => meta.key),
     ["openai-video", "video-generation"]
   );
-  assert.equal(plugin.meta.version, "1.0.1");
+  assert.equal(plugin.meta.version, "1.0.2");
   assert.equal(plugin.meta.icon, "OpenAI");
   assert.equal(plugin.meta.routes, undefined);
   assert.equal(plugin.meta.channelTypes, undefined);
@@ -47,12 +47,12 @@ test("OpenAI Video manifest and local index coexist with Video Generation withou
 test("model definitions expose canonical names, resolution variants and complete matching usage profiles", () => {
   assert.deepEqual(plugin.meta.modelVariants, {
     "minimax-h3": ["768p", "1080p", "1440p"],
-    "seedance-2.0": ["720p", "480p", "1080p", "4k"],
-    "seedance-2.0-fast": ["720p", "480p"],
-    "seedance-2.0-mini": ["720p", "480p"],
-    "seedance-2.5": ["720p", "480p", "1080p"],
+    "seedance-2.0": ["480p", "720p", "1080p", "4k"],
+    "seedance-2.0-fast": ["480p", "720p"],
+    "seedance-2.0-mini": ["480p", "720p"],
+    "seedance-2.5": ["480p", "720p", "1080p"],
     "veo-3.1": ["720p", "1080p", "4k"],
-    "wan-3.0": ["720p", "480p", "1080p"],
+    "wan-3.0": ["480p", "720p", "1080p"],
   });
   for (const model of plugin.meta.models) {
     const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes(model));
@@ -60,8 +60,15 @@ test("model definitions expose canonical names, resolution variants and complete
     assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), plugin.meta.modelVariants[model]);
     assert.equal(profile.schema.seconds.unit, "second");
     assert.equal(profile.schema.seconds.description.en, "Video generation unit price");
-    const defaults = surfaces.video({ prompt: "p" }, model);
-    assert.deepEqual(plugin.extractUsage({ ...base, model, requestBody: defaults.requestBody }), profile.examples[0].facts);
+    const defaultResolution = model === "minimax-h3" ? "768p" : "720p";
+    assert.equal(profile.examples[0].facts.resolution, defaultResolution);
+    for (const decode of Object.values(surfaces)) {
+      const defaults = decode({ prompt: "p" }, model);
+      assert.equal(defaults.modelVariant, defaultResolution);
+      const ctx = { ...base, model, requestBody: defaults.requestBody };
+      assert.equal(plugin.buildSubmitRequest(ctx).body.size, model === "minimax-h3" ? "1280x768" : "1280x720");
+      assert.deepEqual(plugin.extractUsage(ctx), profile.examples[0].facts);
+    }
     for (const resolution of plugin.meta.modelVariants[model]) {
       const intent = surfaces.video({ prompt: "p", resolution, seconds: 6 }, model.toUpperCase());
       assert.equal(intent.model, model);
@@ -88,10 +95,10 @@ test("public model IDs reject old Wan spelling and never normalize mapped upstre
 });
 
 test("Wan 3.0 supports 480p, 720p and 1080p across JSON, multipart and Responses and rejects 1440p", () => {
-  assert.deepEqual(plugin.meta.modelVariants["wan-3.0"], ["720p", "480p", "1080p"]);
+  assert.deepEqual(plugin.meta.modelVariants["wan-3.0"], ["480p", "720p", "1080p"]);
   const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes("wan-3.0"));
-  assert.deepEqual(profile.schema.resolution.enum, ["720p", "480p", "1080p"]);
-  assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), ["720p", "480p", "1080p"]);
+  assert.deepEqual(profile.schema.resolution.enum, ["480p", "720p", "1080p"]);
+  assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), ["480p", "720p", "1080p"]);
   assert.ok(plugin.meta.modelVariants["minimax-h3"].includes("1440p"));
   assert.ok(!plugin.meta.modelVariants["seedance-2.5"].includes("1440p"));
   for (const decode of Object.values(surfaces)) {

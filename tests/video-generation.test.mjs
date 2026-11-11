@@ -12,7 +12,7 @@ const surfaces = {
 };
 
 test("public model IDs are canonical, old Wan spelling is rejected and upstream identifiers stay opaque", () => {
-  assert.equal(plugin.meta.version, "2.0.1");
+  assert.equal(plugin.meta.version, "2.0.2");
   assert.deepEqual(plugin.meta.models, ["minimax-h3", "seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini", "seedance-2.5", "veo-3.1", "wan-3.0"]);
   for (const decode of Object.values(surfaces)) {
     assert.throws(() => decode({ prompt: "p" }, "wan3.0"), /unsupported video generation model/);
@@ -60,18 +60,27 @@ for (const [name, decode] of Object.entries(surfaces)) {
 test("model profiles normalize Seedance variants and enforce fixed duration and Veo quality", () => {
   assert.deepEqual(plugin.meta.modelVariants, {
     "minimax-h3": ["768p", "1080p", "1440p"],
-    "seedance-2.0": ["720p", "480p", "1080p", "4k"],
-    "seedance-2.0-fast": ["720p", "480p"],
-    "seedance-2.0-mini": ["720p", "480p"],
-    "seedance-2.5": ["720p", "480p", "1080p"],
+    "seedance-2.0": ["480p", "720p", "1080p", "4k"],
+    "seedance-2.0-fast": ["480p", "720p"],
+    "seedance-2.0-mini": ["480p", "720p"],
+    "seedance-2.5": ["480p", "720p", "1080p"],
     "veo-3.1": ["720p", "1080p", "4k"],
-    "wan-3.0": ["720p", "480p", "1080p"],
+    "wan-3.0": ["480p", "720p", "1080p"],
   });
   for (const [model, resolutions] of Object.entries(plugin.meta.modelVariants)) {
     assert.ok(plugin.meta.models.includes(model));
     const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes(model));
     assert.deepEqual(profile.schema.resolution.enum, resolutions);
     assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), resolutions);
+    const defaultResolution = model === "minimax-h3" ? "768p" : "720p";
+    assert.equal(profile.examples[0].facts.resolution, defaultResolution);
+    for (const decode of Object.values(surfaces)) {
+      const defaults = decode({ prompt: "p", images: model === "minimax-h3" ? [image] : [] }, model);
+      assert.equal(defaults.modelVariant, defaultResolution);
+      const ctx = { ...base, model, requestBody: defaults.requestBody };
+      assert.equal(plugin.buildSubmitRequest(ctx).body.size, model === "minimax-h3" ? "768P" : "720p");
+      assert.deepEqual(plugin.extractUsage(ctx), profile.examples[0].facts);
+    }
     for (const resolution of resolutions) {
       const body = { prompt: "p", resolution, images: model === "minimax-h3" ? [image] : [] };
       if (model === "veo-3.1") body.quality = resolution;
@@ -91,10 +100,10 @@ test("model profiles normalize Seedance variants and enforce fixed duration and 
 });
 
 test("Wan 3.0 supports 480p, 720p and 1080p across native and host protocols and rejects 1440p", () => {
-  assert.deepEqual(plugin.meta.modelVariants["wan-3.0"], ["720p", "480p", "1080p"]);
+  assert.deepEqual(plugin.meta.modelVariants["wan-3.0"], ["480p", "720p", "1080p"]);
   const profile = plugin.meta.usageProfiles.find((entry) => entry.models.includes("wan-3.0"));
-  assert.deepEqual(profile.schema.resolution.enum, ["720p", "480p", "1080p"]);
-  assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), ["720p", "480p", "1080p"]);
+  assert.deepEqual(profile.schema.resolution.enum, ["480p", "720p", "1080p"]);
+  assert.deepEqual(Object.keys(profile.schema.resolution.enumLabels), ["480p", "720p", "1080p"]);
   assert.ok(plugin.meta.modelVariants["minimax-h3"].includes("1440p"));
   assert.ok(!plugin.meta.modelVariants["seedance-2.5"].includes("1440p"));
   for (const decode of Object.values(surfaces)) {

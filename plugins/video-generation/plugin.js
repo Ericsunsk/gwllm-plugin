@@ -7,8 +7,8 @@ const WAN_MODEL = "wan-3.0";
 const RESOLUTION_LABELS = {
   "480p": { en: "480P", zh: "480P" },
   "720p": { en: "720P", zh: "720P" },
-  "1080p": { en: "1080P", zh: "1080P" },
   "768p": { en: "768P", zh: "768P" },
+  "1080p": { en: "1080P", zh: "1080P" },
   "1440p": { en: "1440P", zh: "1440P" },
   "4k": { en: "4K", zh: "4K" },
 };
@@ -29,13 +29,13 @@ const VIDEO_RESOLUTION_FIELD = {
 };
 
 const PROFILES = {
-  [H3_MODEL]: { kind: "h3", resolutions: ["768p", "1080p", "1440p"], seconds: [5, 15], requiresImages: true },
-  [SEEDANCE_2_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p", "4k"], seconds: [5] },
-  [`${SEEDANCE_2_MODEL}-fast`]: { kind: "fixed", resolutions: ["720p", "480p"], seconds: [5] },
-  [`${SEEDANCE_2_MODEL}-mini`]: { kind: "fixed", resolutions: ["720p", "480p"], seconds: [5] },
-  [SEEDANCE_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p"], seconds: [5] },
-  [VEO_MODEL]: { kind: "veo", resolutions: ["720p", "1080p", "4k"] },
-  [WAN_MODEL]: { kind: "fixed", resolutions: ["720p", "480p", "1080p"] },
+  [H3_MODEL]: { kind: "h3", resolutions: ["768p", "1080p", "1440p"], defaultResolution: "768p", seconds: [5, 15], requiresImages: true },
+  [SEEDANCE_2_MODEL]: { kind: "fixed", resolutions: ["480p", "720p", "1080p", "4k"], defaultResolution: "720p", seconds: [5] },
+  [`${SEEDANCE_2_MODEL}-fast`]: { kind: "fixed", resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: [5] },
+  [`${SEEDANCE_2_MODEL}-mini`]: { kind: "fixed", resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: [5] },
+  [SEEDANCE_MODEL]: { kind: "fixed", resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p", seconds: [5] },
+  [VEO_MODEL]: { kind: "veo", resolutions: ["720p", "1080p", "4k"], defaultResolution: "720p" },
+  [WAN_MODEL]: { kind: "fixed", resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p" },
 };
 const MODEL_NAMES = Object.keys(PROFILES);
 
@@ -63,7 +63,7 @@ function metaUsageExample(model) {
   const profile = PROFILES[model];
   const facts = {};
   if (profile.seconds) facts.seconds = profile.seconds[0];
-  if (profile.resolutions) facts.resolution = profile.resolutions[0];
+  if (profile.resolutions) facts.resolution = profile.defaultResolution;
   if (profile.kind === "veo") facts.quality = "720p";
   return [{ label: model, facts: facts }];
 }
@@ -76,7 +76,7 @@ export const meta = {
     en: "Video generation",
     zh: "视频生成",
   },
-  version: "2.0.1",
+  version: "2.0.2",
   author: { name: "QuantumNous" },
   models: MODEL_NAMES,
   modelVariants: Object.fromEntries(MODEL_NAMES.map((model) => [model, PROFILES[model].resolutions])),
@@ -188,7 +188,7 @@ function normalizeRequest(req, model, mappedModel) {
     .filter((value, index, all) => all.indexOf(value) === index);
   if (!prompt && images.length === 0) throw new Error("input is required");
   let resolution = requestResolution(source);
-  if (!resolution) resolution = (profile.resolutions && profile.resolutions[0]) || "768p";
+  if (!resolution) resolution = profile.defaultResolution;
   if (profile.resolutions && !profile.resolutions.includes(resolution)) throw new Error(model + " resolution must be one of " + profile.resolutions.join(", "));
   if (profile.kind === "veo") {
     const quality = trimmed(source.quality).toLowerCase() || resolution;

@@ -2,13 +2,13 @@
 // This independently maintained plugin defines its own model and request contract.
 const DURATION = { default: 5, min: 1, max: 3600 };
 const MODEL_DEFINITIONS = {
-  "minimax-h3": { resolutions: ["768p", "1080p", "1440p"], seconds: DURATION },
-  "seedance-2.0": { resolutions: ["720p", "480p", "1080p", "4k"], seconds: DURATION },
-  "seedance-2.0-fast": { resolutions: ["720p", "480p"], seconds: DURATION },
-  "seedance-2.0-mini": { resolutions: ["720p", "480p"], seconds: DURATION },
-  "seedance-2.5": { resolutions: ["720p", "480p", "1080p"], seconds: DURATION },
-  "veo-3.1": { resolutions: ["720p", "1080p", "4k"], seconds: DURATION },
-  "wan-3.0": { resolutions: ["720p", "480p", "1080p"], seconds: DURATION },
+  "minimax-h3": { resolutions: ["768p", "1080p", "1440p"], defaultResolution: "768p", seconds: DURATION },
+  "seedance-2.0": { resolutions: ["480p", "720p", "1080p", "4k"], defaultResolution: "720p", seconds: DURATION },
+  "seedance-2.0-fast": { resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: DURATION },
+  "seedance-2.0-mini": { resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: DURATION },
+  "seedance-2.5": { resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p", seconds: DURATION },
+  "veo-3.1": { resolutions: ["720p", "1080p", "4k"], defaultResolution: "720p", seconds: DURATION },
+  "wan-3.0": { resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p", seconds: DURATION },
 };
 const RESOLUTION_DIMENSIONS = {
   "480p": "854x480",
@@ -26,7 +26,7 @@ export const meta = {
   key: "openai-video",
   name: "OpenAI Video",
   icon: "OpenAI",
-  version: "1.0.1",
+  version: "1.0.2",
   author: { name: "QuantumNous" },
   description: { en: "Custom video models via the OpenAI Videos API", zh: "通过 OpenAI Videos 接口调用自定义视频模型" },
   models: MODEL_NAMES,
@@ -48,7 +48,7 @@ export const meta = {
           description: { en: "Output video resolution", zh: "输出视频分辨率" },
         },
       },
-      examples: [{ label: model, facts: { seconds: definition.seconds.default, resolution: definition.resolutions[0] } }],
+      examples: [{ label: model, facts: { seconds: definition.seconds.default, resolution: definition.defaultResolution } }],
     };
   }),
   protocols: [{ name: "openai_responses", supports: ["stream", "sync", "background"] }, "openai_video"],
@@ -100,7 +100,7 @@ function normalizeRequest(req, model, files) {
       : requestSeconds(req.seconds, definition.seconds);
   if (req.seconds !== undefined && req.duration !== undefined && seconds !== requestSeconds(req.duration, definition.seconds))
     throw new Error("seconds and duration must match");
-  const output = videoSize(req.size === undefined ? (req.resolution === undefined ? definition.resolutions[0] : req.resolution) : req.size);
+  const output = videoSize(req.size === undefined ? (req.resolution === undefined ? definition.defaultResolution : req.resolution) : req.size);
   if (req.resolution !== undefined && videoSize(req.resolution).resolution !== output.resolution) throw new Error("size and resolution must match");
   if (!definition.resolutions.includes(output.resolution)) throw new Error(canonical + " resolution must be one of " + definition.resolutions.join(", "));
   const uploaded = files || [];
