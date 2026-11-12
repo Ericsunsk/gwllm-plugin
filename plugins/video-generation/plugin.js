@@ -24,18 +24,19 @@ const VIDEO_SECONDS_FIELD = {
 };
 const VIDEO_RESOLUTION_FIELD = {
   enum: RESOLUTIONS,
+  modelVariant: true,
   enumLabels: RESOLUTION_LABELS,
   description: { en: "Output video resolution", zh: "输出视频分辨率" },
 };
 
 const PROFILES = {
-  [H3_MODEL]: { kind: "h3", resolutions: ["768p", "1080p", "1440p"], defaultResolution: "768p", seconds: [5, 15], requiresImages: true },
-  [SEEDANCE_2_MODEL]: { kind: "fixed", resolutions: ["480p", "720p", "1080p", "4k"], defaultResolution: "720p", seconds: [5] },
-  [`${SEEDANCE_2_MODEL}-fast`]: { kind: "fixed", resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: [5] },
-  [`${SEEDANCE_2_MODEL}-mini`]: { kind: "fixed", resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: [5] },
-  [SEEDANCE_MODEL]: { kind: "fixed", resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p", seconds: [5] },
-  [VEO_MODEL]: { kind: "veo", resolutions: ["720p", "1080p", "4k"], defaultResolution: "720p" },
-  [WAN_MODEL]: { kind: "fixed", resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p" },
+  [H3_MODEL]: { kind: "h3", resolutions: RESOLUTIONS, defaultResolution: "768p", seconds: [5, 15], requiresImages: true },
+  [SEEDANCE_2_MODEL]: { kind: "fixed", resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: [5] },
+  [`${SEEDANCE_2_MODEL}-fast`]: { kind: "fixed", resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: [5] },
+  [`${SEEDANCE_2_MODEL}-mini`]: { kind: "fixed", resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: [5] },
+  [SEEDANCE_MODEL]: { kind: "fixed", resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: [5] },
+  [VEO_MODEL]: { kind: "veo", resolutions: RESOLUTIONS, defaultResolution: "720p" },
+  [WAN_MODEL]: { kind: "fixed", resolutions: RESOLUTIONS, defaultResolution: "720p" },
 };
 const MODEL_NAMES = Object.keys(PROFILES);
 
@@ -55,7 +56,8 @@ function modelSchema(model) {
     for (const value of values) enumLabels[value] = VIDEO_RESOLUTION_FIELD.enumLabels[value];
     schema.resolution = Object.assign({}, VIDEO_RESOLUTION_FIELD, { enum: values, enumLabels: enumLabels });
   }
-  if (profile.kind === "veo") schema.quality = { enum: profile.resolutions, description: { en: "Video generation quality", zh: "视频生成画质" } };
+  if (profile.kind === "veo")
+    schema.quality = { modelVariant: true, enum: profile.resolutions, description: { en: "Video generation quality", zh: "视频生成画质" } };
   return schema;
 }
 
@@ -76,7 +78,7 @@ export const meta = {
     en: "Video generation",
     zh: "视频生成",
   },
-  version: "2.0.2",
+  version: "2.0.3",
   author: { name: "QuantumNous" },
   models: MODEL_NAMES,
   modelVariants: Object.fromEntries(MODEL_NAMES.map((model) => [model, PROFILES[model].resolutions])),

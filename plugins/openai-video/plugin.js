@@ -1,14 +1,15 @@
 // Adapted from QuantumNous / new-api's Sora plugin under AGPL-3.0-or-later.
 // This independently maintained plugin defines its own model and request contract.
+const RESOLUTIONS = ["480p", "720p", "768p", "1080p", "1440p", "4k"];
 const DURATION = { default: 5, min: 1, max: 3600 };
 const MODEL_DEFINITIONS = {
-  "minimax-h3": { resolutions: ["768p", "1080p", "1440p"], defaultResolution: "768p", seconds: DURATION },
-  "seedance-2.0": { resolutions: ["480p", "720p", "1080p", "4k"], defaultResolution: "720p", seconds: DURATION },
-  "seedance-2.0-fast": { resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: DURATION },
-  "seedance-2.0-mini": { resolutions: ["480p", "720p"], defaultResolution: "720p", seconds: DURATION },
-  "seedance-2.5": { resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p", seconds: DURATION },
-  "veo-3.1": { resolutions: ["720p", "1080p", "4k"], defaultResolution: "720p", seconds: DURATION },
-  "wan-3.0": { resolutions: ["480p", "720p", "1080p"], defaultResolution: "720p", seconds: DURATION },
+  "minimax-h3": { resolutions: RESOLUTIONS, defaultResolution: "768p", seconds: DURATION },
+  "seedance-2.0": { resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: DURATION },
+  "seedance-2.0-fast": { resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: DURATION },
+  "seedance-2.0-mini": { resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: DURATION },
+  "seedance-2.5": { resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: DURATION },
+  "veo-3.1": { resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: DURATION },
+  "wan-3.0": { resolutions: RESOLUTIONS, defaultResolution: "720p", seconds: DURATION },
 };
 const RESOLUTION_DIMENSIONS = {
   "480p": "854x480",
@@ -26,7 +27,7 @@ export const meta = {
   key: "openai-video",
   name: "OpenAI Video",
   icon: "OpenAI",
-  version: "1.0.2",
+  version: "1.0.3",
   author: { name: "QuantumNous" },
   description: { en: "Custom video models via the OpenAI Videos API", zh: "通过 OpenAI Videos 接口调用自定义视频模型" },
   models: MODEL_NAMES,
@@ -42,6 +43,7 @@ export const meta = {
         seconds: SECONDS_FIELD,
         resolution: {
           enum: definition.resolutions,
+          modelVariant: true,
           enumLabels: Object.fromEntries(
             definition.resolutions.map((resolution) => [resolution, { en: resolution.toUpperCase(), zh: resolution.toUpperCase() }])
           ),
