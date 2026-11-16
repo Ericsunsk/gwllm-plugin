@@ -20,7 +20,7 @@ https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/marketplace/index.json
 
 ## OpenAI Video
 
-`openai-video@1.0.0` 为相同的七个自定义公开模型提供独立插件，通过 `POST /v1/videos` 提交、`GET /v1/videos/:id` 查询和 `GET/HEAD /v1/videos/:id/content` 下载。也支持宿主 `/v1/responses` 的 stream、sync、background 模式。JSON 和 multipart 图片上传使用同一请求校验。上游为厂商或另一 New API 网关时均使用这些标准路径；不会使用 `video-generation` 的 `/v1/videos/generations/:model` 接口。
+`openai-video` 为相同的七个自定义公开模型提供独立插件，通过 `POST /v1/videos` 提交、`GET /v1/videos/:id` 查询和 `GET/HEAD /v1/videos/:id/content` 下载。也支持宿主 `/v1/responses` 的 stream、sync、background 模式。JSON 和 multipart 图片上传使用同一请求校验。上游为厂商或另一 New API 网关时均使用这些标准路径；不会使用 `video-generation` 的 `/v1/videos/generations/:model` 接口。
 
 模型配置集中在 `plugins/openai-video/plugin.js` 的 `MODEL_DEFINITIONS`，自动生成模型、分辨率路由与每模型计费字段。新增模型只需修改该定义和对应回归用例，再递增插件版本。渠道绑定 `openai-video` 后，按公开模型和分辨率配置上游模型 ID；实际出站 `body.model` 使用该映射 ID。计费为 `seconds` 与 `resolution`，与 `video-generation` 共用公开模型时，可在 `<pluginKey>::<model>` 下单独配置价格。
 
@@ -37,13 +37,17 @@ https://raw.githubusercontent.com/Ericsunsk/gwllm-plugin/marketplace/index.json
 
 请求要求文本提示词，可附带一个 `input_reference` URL 或一个同名上传文件；多图明确拒绝。Responses 输入支持文本和一张参考图。`metadata` 仅透传描述信息，不合并生成参数；其中的 `seconds`、`duration`、`size`、`resolution`、`n`、`quality`、`count`、`batch_size` 会被拒绝。顶层 `n`、`quality`、`count`、`batch_size` 亦不支持。其他未知顶层字段不向上游转发。
 
-这些模型、时长和尺寸是本插件的可编辑配置，需目标供应商实际支持 OpenAI Videos 请求、任务对象及内容下载契约；尚未完成真实供应商端到端验证。官方 Sora 插件仍由主项目维护，本插件不包含 Sora 模型或其专用限制。插件市场仅提供 `openai-video@1.0.2` 和 `video-generation@2.0.2`，不保留旧版本条目。
+这些模型、时长和尺寸是本插件的可编辑配置，需目标供应商实际支持 OpenAI Videos 请求、任务对象及内容下载契约；尚未完成真实供应商端到端验证。官方 Sora 插件仍由主项目维护，本插件不包含 Sora 模型或其专用限制。
+
+截至 2026-11-17，公开市场快照 `c1f480b9bccec8a4c08158456816f90489db4c8c` 已发布 `openai-video@1.0.3` 和 `video-generation@2.0.3`，两者源码均固定到 `d395ff33964aa788bf53e95fe63c78c7c16eab6d`。本轮源码更新的目标版本为 `video-generation@2.0.4`，尚未发布到市场；`openai-video` 保持 `1.0.3`。市场索引每个插件只保留当前已发布版本。
+
+`video-generation@2.0.4` 修复 `new_api` 上游的内容下载路径，改用宿主标准 `/v1/videos/:id/content`；带上传参考图的提交改为 JSON 文件占位符，由宿主内联后交给上游插件的 native JSON 解码，厂商上游仍使用 multipart。Veo 完成响应给出有效分辨率时，同时更新 `resolution` 和 `quality` 用量事实；分辨率缺失或无效时保留提交时的预留事实。
 
 ## 兼容性
 
-宿主需支持 Task Plugin API v1 的 `modelVariants`、`usageProfiles`、`enumLabels`、`upstreams` 扩展及第三方插件市场源。`minApiVersion: 1` 只表示契约主版本，不代表所有旧版 v1 宿主均能加载。已验证的来源基线是 `Ericsunsk/gwllm@f1da677e478ce75cc25478478462ee88492fe52e`；最终安装检查由宿主编译器执行。新增宿主运行时能力或协议契约仍需升级主项目。
+本仓库的宿主基线固定为 `Ericsunsk/gwllm@1553a4b9821186f6f9e0964154576fe41ad02c51`。宿主需支持 Task Plugin API v1 的 `modelVariants`、`usageProfiles`、`enumLabels`、`upstreams` 扩展、usage enum 的 `modelVariant: true` 元数据及第三方插件市场源。`modelVariant: true` 表示该计费条件与归一化路由变体一致，用于价格展示中的可用变体筛选，不改变计费事实校验或结算。`minApiVersion: 1` 只表示契约主版本，不保证旧版 v1 宿主可加载；本仓库直接采用上述 stable 基线，不维护旧宿主 fallback。最终安装检查由宿主编译器执行。新增宿主运行时能力或协议契约仍需升级主项目。
 
-后台轮询旧异步任务时使用当前激活插件。升级需兼容尚未完成任务的请求、状态和持久化数据，或先等待任务完成再激活。市场不提供历史版本安装；Git 历史中的源码记录继续保留。
+后台轮询使用当前激活插件，不按提交版本切换执行。升级前先等待已提交任务完成，再激活新版本；不提供旧任务格式适配或旧版本回退。市场不提供历史版本安装；Git 历史中的源码记录继续保留。
 
 ## 开发与发布
 
@@ -54,7 +58,7 @@ npm ci --ignore-scripts
 npm run check
 ```
 
-测试和契约校验全部在本仓库运行，不依赖主项目 checkout 或密钥。`contract/v1.schema.json` 和 `contract/v1.d.ts` 原样取自上述宿主基线；Schema 校验和 Node hook 回归不替代实际宿主编译。计费数值字段描述遵循「计费对象 + 单价」，单位保留在 `unit`。
+测试和契约校验全部在本仓库运行，不依赖主项目 checkout 或密钥。`contract/v1.schema.json` 和 `contract/v1.d.ts` 成对、逐字节复制自 `Ericsunsk/gwllm@1553a4b9821186f6f9e0964154576fe41ad02c51` 的 `docs/plugin-api/v1.schema.json` 和 `docs/plugin-api/v1.d.ts`，更新时应同步两份完整快照。Schema 校验和 Node hook 回归不替代实际宿主编译；支持基线的验证还需在锁定的宿主上执行真实 MoeJS 编译和协议烟测。计费数值字段描述遵循「计费对象 + 单价」，单位保留在 `unit`。
 
 源码放在 `plugins/<key>/plugin.js`，元数据以源码实际导出的 `meta` 为唯一来源。修改已发布插件必须递增 `meta.version`；禁止复用版本号修改内容。新增插件采用同一目录布局并补充行为回归。
 

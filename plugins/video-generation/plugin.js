@@ -78,7 +78,7 @@ export const meta = {
     en: "Video generation",
     zh: "视频生成",
   },
-  version: "2.0.3",
+  version: "2.0.4",
   author: { name: "QuantumNous" },
   models: MODEL_NAMES,
   modelVariants: Object.fromEntries(MODEL_NAMES.map((model) => [model, PROFILES[model].resolutions])),
@@ -256,7 +256,10 @@ function responseFacts(body, task) {
     result.seconds = seconds;
   try {
     const resolution = normalizeResolution(source.resolution || (body && body.resolution) || source.size || (body && body.size));
-    if (resolution && profile && profile.resolutions && profile.resolutions.includes(resolution)) result.resolution = resolution;
+    if (resolution && profile && profile.resolutions && profile.resolutions.includes(resolution)) {
+      result.resolution = resolution;
+      if (profile.kind === "veo") result.quality = resolution;
+    }
   } catch (e) {
     // Keep the submission estimate when the vendor omits or changes the field.
   }
@@ -306,7 +309,7 @@ export function buildSubmitRequest(ctx) {
   const body = request.body;
   const model = body.model;
   const files = Array.isArray(ctx.files) ? ctx.files : [];
-  if (files.length) {
+  if (files.length && !viaGateway(ctx)) {
     const parts = [];
     for (const key of ["model", "prompt", "seconds", "size", "quality", "ratio", "aspect_ratio", "seed"]) {
       if (body[key] !== undefined && body[key] !== null) parts.push({ name: key, value: body[key] });
@@ -382,7 +385,7 @@ export function listArtifacts(task) {
 export function buildContentRequest(ctx) {
   if (ctx.artifactKey !== "video") throw new Error("artifact_not_found");
   return {
-    url: apiRoot(ctx) + "/v1/videos/" + encodeURIComponent(ctx.upstreamTaskId) + "/content",
+    url: ctx.baseUrl + "/v1/videos/" + encodeURIComponent(ctx.upstreamTaskId) + "/content",
     method: ctx.clientRequest.method,
     headers: { Authorization: "Bearer " + ctx.apiKey },
   };

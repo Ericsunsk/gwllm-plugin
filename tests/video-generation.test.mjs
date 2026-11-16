@@ -12,7 +12,7 @@ const surfaces = {
 };
 
 test("public model IDs are canonical, old Wan spelling is rejected and upstream identifiers stay opaque", () => {
-  assert.equal(plugin.meta.version, "2.0.3");
+  assert.equal(plugin.meta.version, "2.0.4");
   assert.deepEqual(plugin.meta.models, ["minimax-h3", "seedance-2.0", "seedance-2.0-fast", "seedance-2.0-mini", "seedance-2.5", "veo-3.1", "wan-3.0"]);
   for (const decode of Object.values(surfaces)) {
     assert.throws(() => decode({ prompt: "p" }, "wan3.0"), /unsupported video generation model/);
@@ -137,7 +137,7 @@ test("Seedance 2.5 accepts shared 1440p, and Veo 3.1 routes and bills 4k consist
       assert.equal(intent.modelVariant, "4k");
       assert.deepEqual(plugin.buildSubmitRequest(ctx).body, { model: base.upstreamModel, prompt: "p", size: "4k", quality: "4k" });
       assert.deepEqual(plugin.extractUsage(ctx), { resolution: "4k", quality: "4k" });
-      assert.deepEqual(plugin.extractUsageOnComplete(ctx, {}, { output: { size } }), { resolution: "4k" });
+      assert.deepEqual(plugin.extractUsageOnComplete(ctx, {}, { output: { size } }), { resolution: "4k", quality: "4k" });
     }
     assert.throws(() => decode({ prompt: "p", size: "4k", quality: "1080p" }, "veo-3.1"), /resolution must match quality/);
   }
@@ -155,6 +155,19 @@ test("billing quantities reject invalid durations and use only valid reported co
   assert.equal(plugin.extractUsage({ ...base, usagePurpose: "billing_ratios" }), null);
   assert.equal(plugin.extractUsageOnComplete(base, {}, { output: { seconds: 999999, resolution: "broken" } }), null);
   assert.deepEqual(plugin.extractUsageOnComplete({ model: "seedance-2.0" }, {}, { output: { seconds: 6, resolution: "720p" } }), { resolution: "720p" });
+  const veo = { model: "veo-3.1", requestBody: { prompt: "p", size: "720p", quality: "720p" } };
+  const reserved = plugin.extractUsage(veo);
+  assert.deepEqual(reserved, { resolution: "720p", quality: "720p" });
+  for (const [size, expected] of [
+    ["1080p", { resolution: "1080p", quality: "1080p" }],
+    ["720p", reserved],
+    ["8k", null],
+    [undefined, null],
+  ]) {
+    const completed = plugin.extractUsageOnComplete(veo, { status: "SUCCESS" }, { output: { size } });
+    assert.deepEqual(completed, expected);
+    assert.deepEqual({ ...reserved, ...completed }, expected || reserved);
+  }
 });
 
 test("resolution precedence is identical for routing and usage", () => {
@@ -178,12 +191,16 @@ test("multipart preserves multiple opaque file references and metadata without d
     { field: "input_reference", ref: "request_file:input_reference", filename: "one.png", mimeType: "image/png" },
     { field: "input_reference", ref: "request_file:input_reference#1", filename: "two.png", mimeType: "image/png" },
   ];
-  const body = { kind: "multipart", fields: { prompt: ["p"], size: ["1080P"], metadata: ['{"ratio":"16:9","seed":0}'] }, files };
+  const body = {
+    kind: "multipart",
+    fields: { prompt: ["p"], seconds: ["10"], size: ["1080P"], images: [image], metadata: ['{"ratio":"16:9","seed":0}'] },
+    files,
+  };
   const intent = plugin.protocols.openai_video.decodeRequest({ model: base.model, body });
   assert.equal(intent.action, "image_to_video");
   assert.equal(intent.modelVariant, "1080p");
   assert.deepEqual(
-    intent.requestBody.images.map((entry) => entry.__fileRef),
+    intent.requestBody.images.filter((entry) => entry.__fileRef).map((entry) => entry.__fileRef),
     files.map((file) => file.ref)
   );
   const request = plugin.buildSubmitRequest({ ...base, requestBody: intent.requestBody, files });
@@ -196,6 +213,25 @@ test("multipart preserves multiple opaque file references and metadata without d
     request.parts.find((part) => part.name === "seed"),
     { name: "seed", value: 0 }
   );
+  assert.deepEqual(
+    request.parts.filter((part) => part.name === "images"),
+    [{ name: "images", value: image }]
+  );
+  const gateway = { ...base, upstream: { kind: "new_api" }, upstreamModel: base.model, requestBody: intent.requestBody, files };
+  const forwarded = plugin.buildSubmitRequest(gateway);
+  assert.equal(forwarded.url, "https://upstream.example/video-generation/v1/videos/generations/minimax-h3");
+  assert.equal(forwarded.bodyType, undefined);
+  assert.equal(forwarded.headers["Content-Type"], "application/json");
+  assert.deepEqual(forwarded.body, {
+    model: base.model,
+    prompt: "p",
+    seconds: 10,
+    size: "1080P",
+    images: [{ __fileRef: files[0].ref, encoding: "dataUrl", maxBytes: 20971520 }, { __fileRef: files[1].ref, encoding: "dataUrl", maxBytes: 20971520 }, image],
+    ratio: "16:9",
+    seed: 0,
+  });
+  assert.deepEqual(plugin.extractUsage(gateway), { seconds: 10, resolution: "1080p" });
   assert.throws(
     () => plugin.protocols.openai_video.decodeRequest({ model: base.model, body: { ...body, fields: { ...body.fields, size: ["768P", "1080P"] } } }),
     /provided once/
@@ -209,10 +245,12 @@ test("submission, polling and content URLs distinguish vendor and new_api upstre
     const prefix = base.baseUrl + (kind === "new_api" ? "/video-generation" : "");
     assert.equal(plugin.buildSubmitRequest(ctx).url, `${prefix}/v1/videos/generations/mapped%2Fprovider-id`);
     assert.equal(plugin.buildQueryRequest({ ...ctx, taskId: "task/id" }).url, `${prefix}/v1/videos/task%2Fid`);
-    const content = plugin.buildContentRequest({ ...ctx, artifactKey: "video", upstreamTaskId: "task/id", clientRequest: { method: "HEAD" } });
-    assert.equal(content.url, `${prefix}/v1/videos/task%2Fid/content`);
-    assert.equal(content.method, "HEAD");
-    assert.equal(content.headers.Authorization, "Bearer test-key");
+    for (const method of ["GET", "HEAD"]) {
+      const content = plugin.buildContentRequest({ ...ctx, artifactKey: "video", upstreamTaskId: "task/id?variant=original", clientRequest: { method } });
+      assert.equal(content.url, `${base.baseUrl}/v1/videos/task%2Fid%3Fvariant%3Doriginal/content`);
+      assert.equal(content.method, method);
+      assert.equal(content.headers.Authorization, "Bearer test-key");
+    }
   }
   for (const field of ["id", "task_id", "taskId", "request_id"]) {
     assert.equal(plugin.parseSubmitResponse({}, { body: { [field]: "public-gateway-id", status: "queued" } }).taskId, "public-gateway-id");
